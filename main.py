@@ -1,47 +1,40 @@
-import os
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler
+import os
 
-# Получаем токен из переменной окружения
 TOKEN = os.getenv("BOT_TOKEN")
-
-# Состояния диалога
 MESSAGE, ADDRESS, MEDIA = range(3)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Напиши сообщение о происшествии:")
+    await update.message.reply_text("Привет! Напиши сообщение:")
     return MESSAGE
 
 async def get_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["message"] = update.message.text
-    await update.message.reply_text("Укажи адрес происшествия:")
+    await update.message.reply_text("Укажи адрес:")
     return ADDRESS
 
 async def get_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["address"] = update.message.text
-    keyboard = [["Прикрепить фото/видео", "Продолжить без медиа"]]
+    keyboard = [["Прикрепить медиа", "Продолжить без медиа"]]
     await update.message.reply_text(
         "Хочешь прикрепить медиа?",
-        reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
     return MEDIA
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == "Продолжить без медиа":
-        media = None
-    else:
-        media = update.message.photo or update.message.video
-    message = context.user_data["message"]
-    address = context.user_data["address"]
+    message = context.user_data.get("message", "")
+    address = context.user_data.get("address", "")
     final_text = f"📝 Сообщение:\n{message}\n\n📍 Адрес:\n{address}"
-    await update.message.reply_text("Сообщение отправлено!", reply_markup=ReplyKeyboardRemove())
-    # Тут отправка в канал/группу:
     chat_id = os.getenv("TARGET_CHAT_ID")
+
+    await update.message.reply_text("Спасибо! Сообщение отправлено.", reply_markup=ReplyKeyboardRemove())
     await context.bot.send_message(chat_id=chat_id, text=final_text)
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Отменено.", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("Операция отменена.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 def main():
@@ -58,13 +51,11 @@ def main():
     )
 
     app.add_handler(conv_handler)
-
-    print("Бот запущен")
+    print("Бот запущен...")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
 
 async def debug_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Chat ID: {update.effective_chat.id}")
