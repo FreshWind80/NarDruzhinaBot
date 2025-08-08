@@ -1,8 +1,17 @@
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ConversationHandler,
+    ContextTypes,
+    filters,
+)
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 import os
 
 TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("TARGET_CHAT_ID")
+
 MESSAGE, ADDRESS, MEDIA = range(3)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -11,7 +20,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["message"] = update.message.text
-    await update.message.reply_text("Укажи адрес:")
+    await update.message.reply_text("Теперь укажи адрес:")
     return ADDRESS
 
 async def get_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -19,18 +28,17 @@ async def get_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [["Прикрепить медиа", "Продолжить без медиа"]]
     await update.message.reply_text(
         "Хочешь прикрепить медиа?",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
     return MEDIA
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = context.user_data.get("message", "")
     address = context.user_data.get("address", "")
-    final_text = f"📝 Сообщение:\n{message}\n\n📍 Адрес:\n{address}"
-    chat_id = os.getenv("TARGET_CHAT_ID")
+    full_message = f"📝 Сообщение:\n{message}\n📍 Адрес:\n{address}"
 
-    await update.message.reply_text("Спасибо! Сообщение отправлено.", reply_markup=ReplyKeyboardRemove())
-    await context.bot.send_message(chat_id=chat_id, text=final_text)
+    await context.bot.send_message(chat_id=CHAT_ID, text=full_message)
+    await update.message.reply_text("Готово! Спасибо.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -40,18 +48,18 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    conv_handler = ConversationHandler(
+    conv = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_message)],
             ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address)],
-            MEDIA: [MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, handle_media)],
+            MEDIA: [MessageHandler(filters.ALL, handle_media)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
-    app.add_handler(conv_handler)
-    print("Бот запущен...")
+    app.add_handler(conv)
+    print("✅ Бот запущен...")
     app.run_polling()
 
 if __name__ == "__main__":
