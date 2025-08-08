@@ -113,4 +113,11 @@ if __name__ == '__main__':
 
     app.add_handler(conv_handler)
     print("🤖 Бот запущен...")
+
     app.run_polling()
+
+async def debug_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"Chat ID: {update.effective_chat.id}")
+
+app.add_handler(CommandHandler("debug", debug_chat))
+
